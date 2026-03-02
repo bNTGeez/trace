@@ -1,0 +1,6 @@
+{
+  "files.exclude": {
+    "**/.env": true,
+    "**/.env.local.example": true
+  }
+}
