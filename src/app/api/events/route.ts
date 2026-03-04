@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { eventInputSchema } from "@/lib/events/schema";
+import { processEvent } from "@/lib/services/background-tasks/processEvent";
 
 /**
  * GET /api/events — list recent events for the current user.
@@ -43,7 +44,8 @@ export async function POST(request: Request) {
 
   const parsed = eventInputSchema.safeParse(body);
   if (!parsed.success) {
-    const message = parsed.error.flatten().formErrors.join("; ") || "Validation failed";
+    const message =
+      parsed.error.flatten().formErrors.join("; ") || "Validation failed";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
@@ -75,6 +77,15 @@ export async function POST(request: Request) {
     console.error("[events] insert error", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Trigger background processing (non-blocking)
+  void processEvent({ eventId: data.id, userId: user.id }).catch((err) =>
+    console.error("[events] processEvent failed", {
+      eventId: data.id,
+      userId: user.id,
+      error: err instanceof Error ? err.message : String(err),
+    }),
+  );
 
   return NextResponse.json({ id: data.id });
 }
